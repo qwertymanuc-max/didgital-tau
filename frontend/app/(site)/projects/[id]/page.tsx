@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ChevronLeft, ChevronRight, ExternalLink, Maximize2, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, ExternalLink, FileText, Maximize2, X } from "lucide-react"
 import { useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import { getProject, type BackendProject } from "@/lib/api"
@@ -56,9 +56,9 @@ function normalizeAssetUrl(url?: string) {
   return `${API_BASE}/${value}`
 }
 
-function isPdf(url?: string) {
-  return /\.pdf(?:$|\?)/i.test(String(url || "").trim())
-}
+type MediaItem =
+  | { type: "image"; url: string }
+  | { type: "video"; url: string }
 
 export default function ProjectDetailPage() {
   const { t, language } = useI18n()
@@ -74,6 +74,7 @@ export default function ProjectDetailPage() {
   const [brokenImages, setBrokenImages] = useState<string[]>([])
   const [viewerOpen, setViewerOpen] = useState(false)
   const [slideDir, setSlideDir] = useState<"next" | "prev">("next")
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0)
 
   useEffect(() => {
     let alive = true
@@ -90,6 +91,7 @@ export default function ProjectDetailPage() {
         if (!alive) return
         setProject(p)
         setIndex(0)
+        setActiveMediaIndex(0)
         setBrokenImages([])
       } catch (e: any) {
         if (!alive) return
@@ -124,6 +126,21 @@ export default function ProjectDetailPage() {
     return unique.filter((u) => !broken.has(u))
   }, [project, brokenImages])
 
+  const projectUrl = project ? safeProjectUrl(project) : ""
+  const videoUrl = normalizeAssetUrl(project?.video)
+  const presentationUrl = normalizeAssetUrl(project?.presentation)
+
+  const mediaItems = useMemo<MediaItem[]>(
+    () => [
+      ...images.map((url) => ({ type: "image" as const, url })),
+      ...(videoUrl ? [{ type: "video" as const, url: videoUrl }] : []),
+    ],
+    [images, videoUrl]
+  )
+
+  const activeMedia = mediaItems[activeMediaIndex] || null
+  const current = activeMedia?.type === "image" ? activeMedia.url : ""
+
   function markBroken(url: string) {
     const u = String(url || "").trim()
     if (!u) return
@@ -140,6 +157,14 @@ export default function ProjectDetailPage() {
     }
     if (index >= images.length) setIndex(0)
   }, [images.length, index])
+
+  useEffect(() => {
+    if (!mediaItems.length) {
+      if (activeMediaIndex !== 0) setActiveMediaIndex(0)
+      return
+    }
+    if (activeMediaIndex >= mediaItems.length) setActiveMediaIndex(0)
+  }, [mediaItems.length, activeMediaIndex])
 
   const prev = useCallback(() => {
     if (images.length <= 1) return
@@ -171,11 +196,6 @@ export default function ProjectDetailPage() {
       document.body.style.overflow = prevOverflow
     }
   }, [viewerOpen, next, prev])
-
-  const current = images[index] || ""
-  const projectUrl = project ? safeProjectUrl(project) : ""
-  const videoUrl = normalizeAssetUrl(project?.video)
-  const presentationUrl = normalizeAssetUrl(project?.presentation)
 
   if (loading) {
     return (
@@ -277,10 +297,9 @@ export default function ProjectDetailPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Slider */}
           <div className="glass border border-white/10 rounded-2xl p-4">
             <div className="relative rounded-2xl overflow-hidden bg-black/40 aspect-[16/10] border border-white/10">
-              {current ? (
+              {activeMedia?.type === "image" && current ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={current}
@@ -294,13 +313,20 @@ export default function ProjectDetailPage() {
                   onError={() => markBroken(current)}
                   onClick={() => setViewerOpen(true)}
                 />
+              ) : activeMedia?.type === "video" ? (
+                <video
+                  src={activeMedia.url}
+                  controls
+                  preload="metadata"
+                  className="absolute inset-0 w-full h-full object-cover bg-black"
+                />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                  No images
+                  No media
                 </div>
               )}
 
-              {current && (
+              {activeMedia?.type === "image" && current && (
                 <button
                   type="button"
                   onClick={() => setViewerOpen(true)}
@@ -312,7 +338,7 @@ export default function ProjectDetailPage() {
                 </button>
               )}
 
-              {images.length > 1 && (
+              {images.length > 1 && activeMedia?.type === "image" && (
                 <>
                   <button
                     type="button"
@@ -336,36 +362,49 @@ export default function ProjectDetailPage() {
               )}
             </div>
 
-            {images.length > 1 && (
+            {mediaItems.length > 1 && (
               <div className="mt-4 grid grid-cols-5 gap-2">
-                    {images.slice(0, 10).map((url, i) => (
+                {mediaItems.slice(0, 10).map((item, i) => (
                   <button
-                    key={url}
+                    key={`${item.type}-${item.url}`}
                     type="button"
                     onClick={() => {
-                      setSlideDir(i > index ? "next" : "prev")
-                      setIndex(i)
+                      setActiveMediaIndex(i)
+                      if (item.type === "image") {
+                        const imageIndex = images.indexOf(item.url)
+                        if (imageIndex >= 0) {
+                          setSlideDir(imageIndex > index ? "next" : "prev")
+                          setIndex(imageIndex)
+                        }
+                      }
                     }}
                     className={cn(
                       "relative rounded-xl overflow-hidden aspect-[4/3] border bg-black/40",
-                      i === index ? "border-rose-700/70" : "border-white/10 hover:border-white/20"
+                      i === activeMediaIndex ? "border-rose-700/70" : "border-white/10 hover:border-white/20"
                     )}
-                    aria-label={`image ${i + 1}`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={url}
-                        alt=""
-                        className="absolute inset-0 w-full h-full object-cover"
-                        onError={() => markBroken(url)}
-                      />
-                    </button>
-                  ))}
+                    aria-label={`media ${i + 1}`}
+                  >
+                    {item.type === "image" ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.url}
+                          alt=""
+                          className="absolute inset-0 w-full h-full object-cover"
+                          onError={() => markBroken(item.url)}
+                        />
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black text-white/80 text-sm">
+                        Video
+                      </div>
+                    )}
+                  </button>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Details */}
           <div className="glass border border-white/10 rounded-2xl p-6 flex flex-col">
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
               {title}
@@ -399,73 +438,37 @@ export default function ProjectDetailPage() {
 
             <div
               className="prose prose-invert max-w-none text-white/80"
-              // backend sanitizes this field
               dangerouslySetInnerHTML={{ __html: descriptionHtml || "" }}
             />
 
-            {projectUrl && (
-              <div className="mt-8">
-                <a
-                  href={projectUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl gradient-bg text-white font-medium hover:opacity-90 transition-opacity"
-                >
-                  <ExternalLink size={18} />
-                  {t("viewProject")}
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {(videoUrl || presentationUrl) && (
-          <div className="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-8">
-            {videoUrl && (
-              <section className="glass border border-white/10 rounded-2xl p-6">
-                <h2 className="text-2xl font-semibold text-white mb-4">Видео</h2>
-                <div className="rounded-2xl overflow-hidden border border-white/10 bg-black/50">
-                  <video
-                    src={videoUrl}
-                    controls
-                    preload="metadata"
-                    className="w-full aspect-video bg-black"
-                  />
-                </div>
-              </section>
-            )}
-
-            {presentationUrl && (
-              <section className="glass border border-white/10 rounded-2xl p-6">
-                <div className="flex items-center justify-between gap-4 mb-4">
-                  <h2 className="text-2xl font-semibold text-white">Презентация</h2>
+            {(projectUrl || presentationUrl) && (
+              <div className="mt-8 flex flex-wrap gap-3">
+                {projectUrl && (
+                  <a
+                    href={projectUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl gradient-bg text-white font-medium hover:opacity-90 transition-opacity"
+                  >
+                    <ExternalLink size={18} />
+                    {t("viewProject")}
+                  </a>
+                )}
+                {presentationUrl && (
                   <a
                     href={presentationUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-white/80 underline hover:text-white"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white font-medium hover:border-white/20 hover:bg-white/10 transition-colors"
                   >
-                    Открыть файл
+                    <FileText size={18} />
+                    Смотреть презентацию
                   </a>
-                </div>
-
-                {isPdf(presentationUrl) ? (
-                  <div className="rounded-2xl overflow-hidden border border-white/10 bg-white h-[640px]">
-                    <iframe
-                      src={presentationUrl}
-                      title={`${title} presentation`}
-                      className="w-full h-full"
-                    />
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-white/10 bg-black/30 p-5 text-white/70">
-                    Предпросмотр поддерживается для PDF. Для остальных форматов файл можно открыть отдельно.
-                  </div>
                 )}
-              </section>
+              </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   )
