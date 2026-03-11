@@ -20,7 +20,9 @@ CREATE TABLE IF NOT EXISTS projects (
   images TEXT[] NOT NULL DEFAULT '{}',
   featured BOOLEAN NOT NULL DEFAULT FALSE,
 
-  project_url TEXT NOT NULL DEFAULT ''
+  project_url TEXT NOT NULL DEFAULT '',
+  video TEXT NOT NULL DEFAULT '',
+  presentation TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS technologies (

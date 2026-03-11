@@ -80,7 +80,9 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
         removed_refs = 0
 
         with engine.connect() as conn:
-            rows = conn.execute(text("SELECT id, image, images FROM projects ORDER BY id ASC")).mappings().all()
+            rows = conn.execute(
+                text("SELECT id, image, images, video, presentation FROM projects ORDER BY id ASC")
+            ).mappings().all()
 
         with engine.begin() as conn:
             for r in rows:
@@ -89,6 +91,8 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
 
                 image = str(r.get("image") or "").strip()
                 images = parse_tech_input(r.get("images"))
+                video = str(r.get("video") or "").strip()
+                presentation = str(r.get("presentation") or "").strip()
 
                 new_image = image if _upload_exists(image) else ""
                 if image and not new_image:
@@ -103,15 +107,36 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
                     else:
                         removed_refs += 1
 
+                new_video = video if _upload_exists(video) else ""
+                if video and not new_video:
+                    removed_refs += 1
+
+                new_presentation = presentation if _upload_exists(presentation) else ""
+                if presentation and not new_presentation:
+                    removed_refs += 1
+
                 new_images = _unique_keep_order(new_images)
                 if new_image:
                     new_images = [new_image] + [p for p in new_images if p != new_image]
 
-                if new_image != image or new_images != images:
+                if (
+                    new_image != image
+                    or new_images != images
+                    or new_video != video
+                    or new_presentation != presentation
+                ):
                     updated += 1
                     conn.execute(
-                        text("UPDATE projects SET image=:image, images=:images WHERE id=:id"),
-                        {"id": pid, "image": new_image, "images": new_images},
+                        text(
+                            "UPDATE projects SET image=:image, images=:images, video=:video, presentation=:presentation WHERE id=:id"
+                        ),
+                        {
+                            "id": pid,
+                            "image": new_image,
+                            "images": new_images,
+                            "video": new_video,
+                            "presentation": new_presentation,
+                        },
                     )
 
         return {"ok": True, "checked": checked, "updated": updated, "removedRefs": removed_refs}
@@ -209,6 +234,8 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
         featured: Optional[str] = Form(None),
         project_url: str = Form(""),
         image_file: Optional[UploadFile] = File(None),
+        video_file: Optional[UploadFile] = File(None),
+        presentation_file: Optional[UploadFile] = File(None),
         gallery_files: list[UploadFile] = File([]),
     ):
         require_login(request)
@@ -221,6 +248,14 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
         image_path = ""
         if image_file and image_file.filename:
             image_path = await _save_image(image_file)
+
+        video_path = ""
+        if video_file and video_file.filename:
+            video_path = await _save_image(video_file)
+
+        presentation_path = ""
+        if presentation_file and presentation_file.filename:
+            presentation_path = await _save_image(presentation_file)
 
         gallery_paths: list[str] = []
         for f in gallery_files or []:
@@ -245,11 +280,11 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
                     INSERT INTO projects (
                         title_ru, title_kz, title_en,
                         description_ru, description_kz, description_en,
-                        technologies, genres, image, images, category, categories, featured, project_url
+                        technologies, genres, image, images, category, categories, featured, project_url, video, presentation
                     ) VALUES (
                         :title_ru, :title_kz, :title_en,
                         :description_ru, :description_kz, :description_en,
-                        :technologies, :genres, :image, :images, :category, :categories, :featured, :project_url
+                        :technologies, :genres, :image, :images, :category, :categories, :featured, :project_url, :video, :presentation
                     )
                     """
                 ),
@@ -268,6 +303,8 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
                     "categories": categories_list,
                     "featured": featured_bool,
                     "project_url": project_url.strip(),
+                    "video": video_path,
+                    "presentation": presentation_path,
                 },
             )
 
@@ -285,7 +322,7 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
                         id,
                         title_ru, title_kz, title_en,
                         description_ru, description_kz, description_en,
-                        technologies, genres, image, category, featured, project_url
+                        technologies, genres, image, category, featured, project_url, video, presentation
                     FROM projects
                     WHERE id = :id
                     """
@@ -318,6 +355,8 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
                 "featured": bool(row.get("featured")),
                 "project_url": row.get("project_url", "") or "",
                 "image": row.get("image", "") or "",
+                "video": row.get("video", "") or "",
+                "presentation": row.get("presentation", "") or "",
             },
             show_current_image=True,
         )
@@ -340,6 +379,8 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
         featured: Optional[str] = Form(None),
         project_url: str = Form(""),
         image_file: Optional[UploadFile] = File(None),
+        video_file: Optional[UploadFile] = File(None),
+        presentation_file: Optional[UploadFile] = File(None),
         gallery_files: list[UploadFile] = File([]),
         replace_gallery: Optional[str] = Form(None),
         remove_images: Optional[str] = Form(None),
@@ -353,7 +394,7 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
 
         with engine.connect() as conn:
             row = conn.execute(
-                text("SELECT image, images FROM projects WHERE id=:id"),
+                text("SELECT image, images, video, presentation FROM projects WHERE id=:id"),
                 {"id": project_id},
             ).mappings().first()
 
@@ -362,10 +403,20 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
 
         old_img = row.get("image") or ""
         old_images = parse_tech_input(row.get("images"))
+        old_video = row.get("video") or ""
+        old_presentation = row.get("presentation") or ""
 
         image_path = old_img or ""
         if image_file and image_file.filename:
             image_path = await _save_image(image_file)
+
+        video_path = old_video or ""
+        if video_file and video_file.filename:
+            video_path = await _save_image(video_file)
+
+        presentation_path = old_presentation or ""
+        if presentation_file and presentation_file.filename:
+            presentation_path = await _save_image(presentation_file)
 
         tech_list = parse_tech_input(technologies)
         genres_list = parse_tech_input(genres)
@@ -412,7 +463,9 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
                         category=:category,
                         categories=:categories,
                         featured=:featured,
-                        project_url=:project_url
+                        project_url=:project_url,
+                        video=:video,
+                        presentation=:presentation
                     WHERE id=:id
                     """
                 ),
@@ -432,6 +485,8 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
                     "categories": categories_list,
                     "featured": featured_bool,
                     "project_url": project_url.strip(),
+                    "video": video_path,
+                    "presentation": presentation_path,
                 },
             )
             if res.rowcount == 0:
@@ -444,6 +499,11 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
                 if p and p not in still_used:
                     _delete_upload(p)
 
+        if old_video and old_video != video_path:
+            _delete_upload(old_video)
+        if old_presentation and old_presentation != presentation_path:
+            _delete_upload(old_presentation)
+
         return RedirectResponse("/api/admin/projects", status_code=302)
 
     @router.post("/api/admin/projects/{project_id}/delete")
@@ -452,15 +512,19 @@ def create_admin_projects_router(engine: Engine, uploads_dir: Path) -> APIRouter
 
         with engine.begin() as conn:
             row = conn.execute(
-                text("SELECT image, images FROM projects WHERE id=:id"),
+                text("SELECT image, images, video, presentation FROM projects WHERE id=:id"),
                 {"id": project_id},
             ).mappings().first()
             conn.execute(text("DELETE FROM projects WHERE id=:id"), {"id": project_id})
 
         img = (row or {}).get("image") or ""
         imgs = parse_tech_input((row or {}).get("images"))
+        video = (row or {}).get("video") or ""
+        presentation = (row or {}).get("presentation") or ""
         for p in _unique_keep_order(([img] if img else []) + imgs):
             _delete_upload(p)
+        _delete_upload(video)
+        _delete_upload(presentation)
 
         return RedirectResponse("/api/admin/projects", status_code=302)
 

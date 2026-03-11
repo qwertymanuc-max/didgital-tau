@@ -15,6 +15,8 @@ export type BackendProject = {
   featured?: boolean
   projectUrl?: string
   project_url?: string
+  video?: string
+  presentation?: string
 }
 
 export type Stats = {

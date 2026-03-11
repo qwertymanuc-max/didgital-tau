@@ -60,7 +60,9 @@ def ensure_schema(engine: Engine) -> None:
                   categories TEXT[] NOT NULL DEFAULT '{}',
                   featured BOOLEAN NOT NULL DEFAULT FALSE,
 
-                  project_url TEXT NOT NULL DEFAULT ''
+                  project_url TEXT NOT NULL DEFAULT '',
+                  video TEXT NOT NULL DEFAULT '',
+                  presentation TEXT NOT NULL DEFAULT ''
                 );
                 """
             )
@@ -70,6 +72,8 @@ def ensure_schema(engine: Engine) -> None:
         conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS genres TEXT[] NOT NULL DEFAULT '{}'"))
         conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS categories TEXT[] NOT NULL DEFAULT '{}'"))
         conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS images TEXT[] NOT NULL DEFAULT '{}'"))
+        conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS video TEXT NOT NULL DEFAULT ''"))
+        conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS presentation TEXT NOT NULL DEFAULT ''"))
 
         conn.execute(
             text(

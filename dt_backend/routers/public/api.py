@@ -49,7 +49,9 @@ def create_public_api_router(engine: Engine) -> APIRouter:
                     category,
                     categories,
                     featured,
-                    project_url
+                    project_url,
+                    video,
+                    presentation
                 FROM projects
             """
             params: Dict[str, Any] = {}
@@ -85,7 +87,9 @@ def create_public_api_router(engine: Engine) -> APIRouter:
                             category,
                             categories,
                             featured,
-                            project_url
+                            project_url,
+                            video,
+                            presentation
                         FROM projects
                         WHERE id = :id
                         """

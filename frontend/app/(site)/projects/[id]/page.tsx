@@ -8,6 +8,9 @@ import { useI18n } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import { getProject, type BackendProject } from "@/lib/api"
 
+const API_BASE =
+  (process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "")
+
 function normalizeToArray(input?: string[] | string) {
   if (!input) return []
   if (Array.isArray(input)) return input.map((x) => String(x).trim()).filter(Boolean)
@@ -43,6 +46,18 @@ function safeProjectUrl(p: BackendProject) {
   if (!url) return ""
   if (url.startsWith("http://") || url.startsWith("https://")) return url
   return url
+}
+
+function normalizeAssetUrl(url?: string) {
+  const value = String(url || "").trim()
+  if (!value) return ""
+  if (value.startsWith("http://") || value.startsWith("https://")) return value
+  if (value.startsWith("/")) return `${API_BASE}${value}`
+  return `${API_BASE}/${value}`
+}
+
+function isPdf(url?: string) {
+  return /\.pdf(?:$|\?)/i.test(String(url || "").trim())
 }
 
 export default function ProjectDetailPage() {
@@ -100,8 +115,8 @@ export default function ProjectDetailPage() {
   const images = useMemo(() => {
     if (!project) return []
     const combined = [
-      String(project.image || "").trim(),
-      ...normalizeToArray((project as any).images),
+      normalizeAssetUrl(project.image),
+      ...normalizeToArray((project as any).images).map((url) => normalizeAssetUrl(url)),
     ].filter(Boolean)
     const unique = Array.from(new Set(combined))
     if (!brokenImages.length) return unique
@@ -159,6 +174,8 @@ export default function ProjectDetailPage() {
 
   const current = images[index] || ""
   const projectUrl = project ? safeProjectUrl(project) : ""
+  const videoUrl = normalizeAssetUrl(project?.video)
+  const presentationUrl = normalizeAssetUrl(project?.presentation)
 
   if (loading) {
     return (
@@ -249,7 +266,7 @@ export default function ProjectDetailPage() {
       )}
 
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-4 mb-8">
           <Link
             href="/projects"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl glass border border-white/10 text-white/80 hover:text-white hover:border-white/20 transition-colors"
@@ -257,18 +274,6 @@ export default function ProjectDetailPage() {
             <ChevronLeft size={18} />
             {t("projects")}
           </Link>
-
-          {projectUrl && (
-            <a
-              href={projectUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl gradient-bg text-white font-medium hover:opacity-90 transition-opacity"
-            >
-              <ExternalLink size={18} />
-              {t("viewProject")}
-            </a>
-          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -361,11 +366,9 @@ export default function ProjectDetailPage() {
           </div>
 
           {/* Details */}
-          <div className="glass border border-white/10 rounded-2xl p-6">
-            <h1 className="text-3xl md:text-4xl font-bold mb-3">
-              <span className="inline-block gradient-text drop-shadow-[0_2px_14px_rgba(0,0,0,0.75)] bg-black/35 border border-white/10 px-3 py-2 rounded-2xl">
-                {title}
-              </span>
+          <div className="glass border border-white/10 rounded-2xl p-6 flex flex-col">
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
+              {title}
             </h1>
 
             <div className="flex flex-wrap items-center gap-2 mb-5">
@@ -399,8 +402,70 @@ export default function ProjectDetailPage() {
               // backend sanitizes this field
               dangerouslySetInnerHTML={{ __html: descriptionHtml || "" }}
             />
+
+            {projectUrl && (
+              <div className="mt-8">
+                <a
+                  href={projectUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl gradient-bg text-white font-medium hover:opacity-90 transition-opacity"
+                >
+                  <ExternalLink size={18} />
+                  {t("viewProject")}
+                </a>
+              </div>
+            )}
           </div>
         </div>
+
+        {(videoUrl || presentationUrl) && (
+          <div className="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-8">
+            {videoUrl && (
+              <section className="glass border border-white/10 rounded-2xl p-6">
+                <h2 className="text-2xl font-semibold text-white mb-4">Видео</h2>
+                <div className="rounded-2xl overflow-hidden border border-white/10 bg-black/50">
+                  <video
+                    src={videoUrl}
+                    controls
+                    preload="metadata"
+                    className="w-full aspect-video bg-black"
+                  />
+                </div>
+              </section>
+            )}
+
+            {presentationUrl && (
+              <section className="glass border border-white/10 rounded-2xl p-6">
+                <div className="flex items-center justify-between gap-4 mb-4">
+                  <h2 className="text-2xl font-semibold text-white">Презентация</h2>
+                  <a
+                    href={presentationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white/80 underline hover:text-white"
+                  >
+                    Открыть файл
+                  </a>
+                </div>
+
+                {isPdf(presentationUrl) ? (
+                  <div className="rounded-2xl overflow-hidden border border-white/10 bg-white h-[640px]">
+                    <iframe
+                      src={presentationUrl}
+                      title={`${title} presentation`}
+                      className="w-full h-full"
+                    />
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-5 text-white/70">
+                    Предпросмотр поддерживается для PDF. Для остальных форматов файл можно открыть отдельно.
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

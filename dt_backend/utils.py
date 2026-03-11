@@ -121,6 +121,8 @@ def row_to_project(row: Dict[str, Any]) -> Dict[str, Any]:
         "categories": categories_list,
         "featured": bool(row.get("featured")),
         "projectUrl": row.get("project_url"),
+        "video": row.get("video"),
+        "presentation": row.get("presentation"),
     }
 
 

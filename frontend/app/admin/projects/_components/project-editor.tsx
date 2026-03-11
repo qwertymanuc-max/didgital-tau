@@ -25,6 +25,8 @@ export type BackendProject = {
   featured?: boolean
   projectUrl?: string
   project_url?: string
+  video?: string
+  presentation?: string
 }
 
 const API_BASE =
@@ -77,6 +79,10 @@ export function ProjectEditor({ mode }: { mode: Mode }) {
   const [projectUrl, setProjectUrl] = useState("")
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [currentImage, setCurrentImage] = useState<string>("")
+  const [videoFile, setVideoFile] = useState<File | null>(null)
+  const [currentVideo, setCurrentVideo] = useState<string>("")
+  const [presentationFile, setPresentationFile] = useState<File | null>(null)
+  const [currentPresentation, setCurrentPresentation] = useState<string>("")
   const [galleryFiles, setGalleryFiles] = useState<File[]>([])
   const [currentGallery, setCurrentGallery] = useState<string[]>([])
   const [removedGallery, setRemovedGallery] = useState<string[]>([])
@@ -141,8 +147,12 @@ export function ProjectEditor({ mode }: { mode: Mode }) {
       setFeatured(Boolean(p.featured))
       setProjectUrl(p.projectUrl || (p as any).project_url || "")
       setCurrentImage(p.image || "")
+      setCurrentVideo(p.video || "")
+      setCurrentPresentation(p.presentation || "")
       setCurrentGallery(normalizeToArray((p as any).images))
       setImageFile(null)
+      setVideoFile(null)
+      setPresentationFile(null)
       setGalleryFiles([])
       setRemovedGallery([])
       setReplaceGallery(false)
@@ -216,6 +226,8 @@ export function ProjectEditor({ mode }: { mode: Mode }) {
       fd.append("project_url", projectUrl)
 
       if (imageFile) fd.append("image_file", imageFile)
+      if (videoFile) fd.append("video_file", videoFile)
+      if (presentationFile) fd.append("presentation_file", presentationFile)
       for (const f of galleryFiles) fd.append("gallery_files", f)
       if (replaceGallery) fd.append("replace_gallery", "true")
       if (removedGallery.length) fd.append("remove_images", removedGallery.join(", "))
@@ -418,6 +430,44 @@ export function ProjectEditor({ mode }: { mode: Mode }) {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={currentImage} alt="current" className="w-full h-36 object-cover opacity-90" />
                   </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm text-muted-foreground mb-2">Video fragment</label>
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                  className="w-full px-4 py-3 rounded-xl glass border border-white/10 text-white
+                             focus:outline-none focus:border-white/30 transition-colors bg-transparent"
+                />
+                {mode.kind === "edit" && currentVideo && !videoFile && (
+                  <div className="mt-3 rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                    <video src={currentVideo} controls className="w-full h-52 bg-black" />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm text-muted-foreground mb-2">Presentation file</label>
+                <input
+                  type="file"
+                  accept=".pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                  onChange={(e) => setPresentationFile(e.target.files?.[0] || null)}
+                  className="w-full px-4 py-3 rounded-xl glass border border-white/10 text-white
+                             focus:outline-none focus:border-white/30 transition-colors bg-transparent"
+                />
+                <p className="mt-2 text-xs text-muted-foreground">PDF previews best in browser.</p>
+                {mode.kind === "edit" && currentPresentation && !presentationFile && (
+                  <a
+                    href={currentPresentation}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex text-sm text-white/80 underline hover:text-white"
+                  >
+                    Open current presentation
+                  </a>
                 )}
               </div>
 
