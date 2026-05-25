@@ -77,9 +77,9 @@ const translations: Translations = {
     kz: "Жобаларды жүктеу мүмкін болмады",
   },
   checkApi: {
-    en: "Check: NEXT_PUBLIC_API_BASE_URL (empty for nginx) and that /api/health opens from the same domain.",
-    ru: "Проверь: NEXT_PUBLIC_API_BASE_URL (для nginx оставь пустым) и что /api/health открывается с этого же домена.",
-    kz: "Тексер: NEXT_PUBLIC_API_BASE_URL (nginx үшін бос қалдыр) және /api/health сол доменнен ашылатынын.",
+    en: "Check reverse proxy routing: /api/projects must reach the backend with the /api prefix preserved.",
+    ru: "Проверь reverse proxy: /api/projects должен попадать в backend с сохранением префикса /api.",
+    kz: "Reverse proxy баптауын тексер: /api/projects backend-ке /api префиксі сақталып жетуі керек.",
   },
   noProjectsFound: {
     en: "No projects found matching your criteria.",

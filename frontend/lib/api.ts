@@ -74,6 +74,14 @@ async function apiGet<T>(path: string): Promise<T> {
     const text = await res.text().catch(() => "")
     throw new Error(`API ${path} failed: ${res.status} ${text}`)
   }
+
+  const contentType = res.headers.get("content-type") || ""
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      `API ${path} returned non-JSON (${contentType || "unknown content type"}) from ${res.url}. Check reverse proxy /api routing.`
+    )
+  }
+
   return res.json() as Promise<T>
 }
 
