@@ -169,13 +169,21 @@ export default function ProjectDetailPage() {
   const prev = useCallback(() => {
     if (images.length <= 1) return
     setSlideDir("prev")
-    setIndex((i) => (i - 1 + images.length) % images.length)
+    setIndex((i) => {
+      const nextIndex = (i - 1 + images.length) % images.length
+      setActiveMediaIndex(nextIndex)
+      return nextIndex
+    })
   }, [images.length])
 
   const next = useCallback(() => {
     if (images.length <= 1) return
     setSlideDir("next")
-    setIndex((i) => (i + 1) % images.length)
+    setIndex((i) => {
+      const nextIndex = (i + 1) % images.length
+      setActiveMediaIndex(nextIndex)
+      return nextIndex
+    })
   }, [images.length])
 
   useEffect(() => {
