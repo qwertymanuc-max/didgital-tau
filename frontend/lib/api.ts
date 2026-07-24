@@ -45,7 +45,7 @@ const PUBLIC_API_BASE =
 // Для server-side запросов (внутри docker-сети) localhost указывает на контейнер frontend,
 // поэтому используем отдельную переменную с дефолтом на сервис `api`.
 const INTERNAL_API_BASE =
-  process.env.API_INTERNAL_BASE_URL?.replace(/\/+$/, "") || "http://api:8000"
+  process.env.API_INTERNAL_BASE_URL?.replace(/\/+$/, "") || "http://api:18000"
 
 const API_BASE = typeof window === "undefined" ? INTERNAL_API_BASE : PUBLIC_API_BASE
 

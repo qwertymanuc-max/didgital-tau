@@ -20,5 +20,5 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/next.config.mjs ./next.config.mjs
-EXPOSE 3000
-CMD ["npm", "run", "start", "--", "-p", "3000"]
+EXPOSE 13000
+CMD ["npm", "run", "start", "--", "-p", "13000"]

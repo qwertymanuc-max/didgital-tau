@@ -23,9 +23,9 @@ def get_settings() -> Settings:
     admin_pass = os.getenv("ADMIN_PASS", "admin")
     secret_key = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
 
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:18081")
 
-    cors_raw = os.getenv("CORS_ORIGINS") or "http://localhost:3000,http://localhost:3001"
+    cors_raw = os.getenv("CORS_ORIGINS") or "http://localhost:18081,http://localhost:13000"
     cors_origins = [o.strip() for o in cors_raw.split(",") if o.strip()]
 
     return Settings(
@@ -36,4 +36,3 @@ def get_settings() -> Settings:
         frontend_url=frontend_url,
         cors_origins=cors_origins,
     )
-
